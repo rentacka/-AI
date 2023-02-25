@@ -9,6 +9,7 @@ import shlex
 import platform
 import argparse
 import json
+import webbrowser
 
 dir_repos = "repositories"
 dir_extensions = "extensions"
@@ -205,17 +206,10 @@ def prepare_environment():
 
 
     torch_command = os.environ.get('TORCH_COMMAND', "pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117 --extra-index-url https://download.pytorch.org/whl/cu117")
+    gradio_command = os.environ.get('Gradio_COMMAND', "pip install gradio==3.16.2")
+
     requirements_file = os.environ.get('REQS_FILE', "requirements_versions.txt")
     commandline_args = os.environ.get('COMMANDLINE_ARGS', "")
-
-    stable_diffusion_repo = os.environ.get('STABLE_DIFFUSION_REPO', "https://github.com/Stability-AI/stablediffusion.git")
-    taming_transformers_repo = os.environ.get('TAMING_TRANSFORMERS_REPO', "https://github.com/CompVis/taming-transformers.git")
-    k_diffusion_repo = os.environ.get('K_DIFFUSION_REPO', 'https://github.com/crowsonkb/k-diffusion.git')
-    codeformer_repo = os.environ.get('CODEFORMER_REPO', 'https://github.com/sczhou/CodeFormer.git')
-    blip_repo = os.environ.get('BLIP_REPO', 'https://github.com/salesforce/BLIP.git')
-
-
-# In[0]:
 
     sys.argv += shlex.split(commandline_args)
 
@@ -231,9 +225,6 @@ def prepare_environment():
     sys.argv, run_tests, test_dir = extract_opt(sys.argv, '--tests')
     sys.argv, skip_install = extract_arg(sys.argv, '--skip-install')
 
-# In[1]:
-
-
     if not skip_python_version_check:
         check_python_version()
 
@@ -244,6 +235,10 @@ def prepare_environment():
 
     if reinstall_torch or not is_installed("torch") or not is_installed("torchvision"):
         run(f'"{python}" -m {torch_command}', "Installing torch and torchvision", "Couldn't install torch", live=True)
+
+
+    if reinstall_torch or not is_installed("gradio"):
+        run(f'"{python}" -m {gradio_command}', "Installing torch and torchvision", "Couldn't install gradio", live=True)
 
     if not skip_torch_cuda_test:
         run_python("import torch; assert torch.cuda.is_available(), 'Torch is not able to use GPU; add --skip-torch-cuda-test to COMMANDLINE_ARGS variable to disable this check'")
@@ -287,58 +282,59 @@ def tests(test_dir):
 
 def start():
     print(f"Launching {'感想文AI'} with arguments: {' '.join(sys.argv[1:])}")
-
-
-if __name__ == "__main__":
-    prepare_environment()
-    start()
+    webbrowser.open("http://localhost:7860/")
 
 
 # In[2]:
 
 
+prepare_environment()
+
+
 from transformers import pipeline
 import torch
+import gradio as gr
+from gradio.inputs import Textbox
+from gradio.outputs import Textbox
 
 
 # In[4]:
 
 
-generator = pipeline("text-generation", model="yellowback/gpt-neo-japanese-1.3B",device=1)
-generator.model.eval()
+device = -1 # cpu
+if torch.cuda.is_available():
+    device = 0
 
-
-# In[12]:
-
-
-tagetText="振り返るとトラックが獲物を追い詰めたようにその場でアイドリングを吹かせていた。"
-
-
-# In[18]:
-
-
-prompt= """
-感想です。
-"""
+generator = pipeline("text-generation", model="abeja/gpt-neox-japanese-2.7b", torch_dtype=torch.float16, device=device)
 
 
 # In[19]:
 
+prompt = "感想は、"
 
-generated = generator(
-    tagetText+prompt,
+def generate_text(input_text):
+    generated_text = generator(input_text+prompt,
 #    max_length=len(tagetText)+len(prompt),
     max_length=100+len(prompt),
     do_sample=True,
     num_return_sequences=1,
     top_p=0.95,
-    top_k=50
-)
-print(*generated, sep="\n")
+    top_k=50)[0]['generated_text']
+    return generated_text
+
+input_text = gr.Textbox(label="Input Text")
+output_text = gr.Textbox(label="Generated Text")
+
+title = "感想文ＡＩ"
+description = "マネーコイコイの閃き一千万はYoutubeで面白い動画をやってるから、おおすすめだよｂ https://www.youtube.com/@moneykoikoi"
+
+jrr = gr.Interface(fn=generate_text, inputs=input_text, outputs=output_text, title=title, description=description)
 
 
 # In[ ]:
 
 
+if __name__ == "__main__":
+    start()
 
-
+jrr.launch()
