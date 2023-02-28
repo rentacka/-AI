@@ -310,26 +310,24 @@ generator = pipeline("text-generation", model="abeja/gpt-neox-japanese-2.7b", to
 
 # In[19]:
 
-prompt = "感想は、"
+prompt="この小説の感想を書きます。私が思ったことは、"
 
-def generate_text(input_text):
-    generated_text = generator(input_text+prompt,
-#    max_length=len(tagetText)+len(prompt),
-    max_length=100+len(prompt),
+def generate_text(input_text,sepal_length):
+    generated_text = generator(input_text+prompt, max_length=len(input_text)+len(prompt)+sepal_length,    
     do_sample=True,
     num_return_sequences=1,
     top_p=0.95,
     top_k=50)[0]['generated_text']
     return generated_text
 
-input_text = gr.Textbox(label="Input Text")
+sepal_length = gr.inputs.Slider(minimum=10, maximum=400,default=10,label='感想の長さ')
+
+input_text = gr.Textbox(label="要約を入力しよう(Ctrl+V")
 output_text = gr.Textbox(label="Generated Text")
 
 title = "感想文ＡＩ"
 description = "マネーコイコイの閃き一千万はYoutubeで面白い動画をやってるから、おおすすめだよｂ https://www.youtube.com/@moneykoikoi"
-
-jrr = gr.Interface(fn=generate_text, inputs=input_text, outputs=output_text, title=title, description=description)
-
+jrr = gr.Interface(fn=generate_text, inputs= [input_text,sepal_length], outputs=output_text, title=title, description=description)
 
 # In[ ]:
 
