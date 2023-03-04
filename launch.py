@@ -318,6 +318,9 @@ def generate_text(input_text,sepal_length):
     num_return_sequences=1,
     top_p=0.95,
     top_k=50)[0]['generated_text']
+    
+    generated_text = generated_text.replace(input_text+prompt, '')
+    
     return generated_text
 
 sepal_length = gr.inputs.Slider(minimum=10, maximum=400,default=10,label='感想の長さ')
